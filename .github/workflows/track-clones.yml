@@ -12,18 +12,27 @@ jobs:
   track-clones:
     runs-on: ubuntu-latest
 
+    env:
+      TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+
     steps:
+      - name: Explain optional traffic collection
+        if: env.TRAFFIC_TOKEN == ''
+        run: echo '::notice::Clone traffic collection skipped. Configure TRAFFIC_TOKEN with repository traffic access to enable it.'
+
       - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.TRAFFIC_TOKEN }}
+          token: ${{ secrets.TRAFFIC_TOKEN || github.token }}
 
       - name: Fetch clone traffic
+        if: env.TRAFFIC_TOKEN != ''
         env:
           GH_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
         run: |
           gh api repos/${{ github.repository }}/traffic/clones > /tmp/traffic.json
 
       - name: Update accumulated data
+        if: env.TRAFFIC_TOKEN != ''
         run: |
           python3 - <<'PYEOF'
           import json
@@ -74,6 +83,7 @@ jobs:
           PYEOF
 
       - name: Commit and push
+        if: env.TRAFFIC_TOKEN != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
